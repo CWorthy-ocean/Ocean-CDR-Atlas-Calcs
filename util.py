@@ -207,7 +207,8 @@ def read_alk_forcing_files(polygon_id, injection_year, injection_month, years, m
             files.append(str(filepath))
     
     # Open and combine datasets
-    return xr.open_mfdataset(files, decode_timedelta=True)
+    # Use compat='override' to skip coordinate checking for faster loading
+    return xr.open_mfdataset(files, decode_timedelta=True, compat='override', coords='minimal')
 
 
 class AtlasModelGridAnalyzer:
