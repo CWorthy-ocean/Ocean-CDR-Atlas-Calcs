@@ -12,8 +12,6 @@ import os
 from pathlib import Path
 from subprocess import check_output, check_call
 
-
-import logging
 import tempfile
 import time
 import textwrap
@@ -445,11 +443,7 @@ class AtlasModelGridAnalyzer:
         KeyError
             If FG_CO2 variable is not found in dataset.
         """
-        start_time = time.time()
-        logger = logging.getLogger(__name__)
-        
         # Validate and set default months
-        t0 = time.time()
         if months is None:
             months = list(range(1, 13))
         else:
@@ -459,58 +453,59 @@ class AtlasModelGridAnalyzer:
                 raise ValueError("months must be a list of integers")
             if not all(1 <= m <= 12 for m in months):
                 raise ValueError("months must be integers between 1 and 12")
-        logger.info(f"Validation and setup: {time.time() - t0:.2f}s")
+        
+        # Print plan before starting
+        injection_date = f"{injection_year:04d}-{injection_month:02d}"
+        print(f"Plan for polygon_id={polygon_id}, injection_date={injection_date}, years={years}, months={months}:")
+        print("  1. Read alk-forcing files")
+        print("  2. Verify FG_CO2 variables")
+        print("  3. Create time delta array")
+        print("  4. Get TAREA and boundary mask")
+        print("  5. Select and process FG_CO2 data")
+        print("  6. Compute cumulative integrals")
         
         # Read alk-forcing data
-        t0 = time.time()
-        logger.info(f"Reading alk-forcing files for polygon_id={polygon_id}, years={years}, months={months}")
+        print("  1. Reading alk-forcing files...", end=" ", flush=True)
         ds = read_alk_forcing_files(
             polygon_id, injection_year, injection_month, years, months
         )
-        logger.info(f"Reading files completed: {time.time() - t0:.2f}s")
+        print("✓")
 
         # Get FG_CO2 data
-        t0 = time.time()
+        print("  2. Verifying FG_CO2 variables...", end=" ", flush=True)
         if 'FG_CO2' not in ds:
             raise KeyError("FG_CO2 variable not found in dataset")
         
         if 'FG_ALT_CO2' not in ds:
             raise KeyError("FG_ALT_CO2 variable not found in dataset")
-        logger.info(f"Variable checks: {time.time() - t0:.2f}s")
+        print("✓")
 
         # Create time_delta DataArray with days per month, replicating months for each year
         # For each year, repeat the months list
-        t0 = time.time()
+        print("  3. Creating time delta array...", end=" ", flush=True)
         time_delta_seconds = xr.DataArray(
             [DAYS_PER_MONTH[m - 1] * 86400.0 for _ in years for m in months],
             dims=['elapsed_time'],
             coords={'elapsed_time': ds.elapsed_time} if 'elapsed_time' in ds.coords else None
         )
-        logger.info(f"Creating time_delta DataArray: {time.time() - t0:.2f}s")
+        print("✓")
         
         # Get TAREA for area weighting
-        t0 = time.time()
+        print("  4. Getting TAREA and boundary mask...", end=" ", flush=True)
         tarea = self.atlas_grid.TAREA
         nlat, nlon = tarea.shape
-        logger.info(f"Getting TAREA (shape={nlat}x{nlon}): {time.time() - t0:.2f}s")
-
-        # Select the appropriate polygon and injection date
-        injection_date = f"{injection_year:04d}-{injection_month:02d}"
 
         # Get indices within boundaries if not already computed
-        t0 = time.time()
         if self._within_boundaries_indices is None:
             self._get_polygon_ids_within_boundaries()
-        logger.info(f"Getting boundary indices: {time.time() - t0:.2f}s")
         
         # Create mask for points within grid boundaries
-        t0 = time.time()
         within_mask = np.zeros((nlat, nlon), dtype=bool)
         within_mask.ravel()[self._within_boundaries_indices] = True
-        logger.info(f"Creating within_mask: {time.time() - t0:.2f}s")
+        print("✓")
 
         # Select and process FG_CO2 data
-        t0 = time.time()
+        print("  5. Selecting and processing FG_CO2 data...", end=" ", flush=True)
         fg_co2_alt_co2 = ds.FG_ALT_CO2.sel(
             polygon_id=polygon_id, injection_date=injection_date
         ).squeeze()
@@ -522,10 +517,10 @@ class AtlasModelGridAnalyzer:
 
         fg_co2_additional = fg_co2 - fg_co2_alt_co2 # nmol/cm2/s
         fg_co2_additional *= 1e-9 # mol/cm2/s
-        logger.info(f"Selecting and processing FG_CO2 data: {time.time() - t0:.2f}s")
+        print("✓")
 
         # Compute cumulative integrals
-        t0 = time.time()
+        print("  6. Computing cumulative integrals...", end=" ", flush=True)
         fg_co2_int_within = (
             (fg_co2_additional * time_delta_seconds * tarea.where(within_mask))
             .sum(dim=['nlat', 'nlon'])
@@ -537,10 +532,7 @@ class AtlasModelGridAnalyzer:
             .cumsum(dim='elapsed_time')
         )
         fraction = fg_co2_int_within / fg_co2_int_total
-        logger.info(f"Computing cumulative integrals: {time.time() - t0:.2f}s")
-        
-        total_time = time.time() - start_time
-        logger.info(f"Total integration time: {total_time:.2f}s")
+        print("✓")
         
         # Return as xarray Dataset
         return xr.Dataset({
