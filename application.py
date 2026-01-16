@@ -69,6 +69,8 @@ def main(args: Optional[Iterable[str]] = None) -> int:
     else:
         cluster = None
     
+    completed = []
+    failed = []
     try:
         for entry in app_config.notebook_list.notebooks:
             parameters = dict(entry.config.parameters)
@@ -86,16 +88,27 @@ def main(args: Optional[Iterable[str]] = None) -> int:
                 output_path = output_path.with_suffix(".ipynb")
             
             logger.info("Running %s -> %s", notebook_path, output_path)
-            run_notebook(
-                notebook_path,
-                output_path=output_path,
-                parameters=parameters,
-            )
-            logger.info("Completed %s", output_path)
+            try:
+                run_notebook(
+                    notebook_path,
+                    output_path=output_path,
+                    parameters=parameters,
+                )
+                completed.append(str(output_path))
+                logger.info("Completed %s", output_path)
+            except Exception as exc:
+                failed.append(str(output_path))
+                logger.exception("Failed %s: %s", output_path, exc)
     finally:
         if cluster is not None:
             logger.info("Shutting down cluster")
             cluster.shutdown()
+    if failed:
+        raise RuntimeError(
+            "Notebook execution failures. Completed: {completed}; Failed: {failed}".format(
+                completed=completed, failed=failed
+            )
+        )
     return 0
 
 if __name__ == "__main__":
