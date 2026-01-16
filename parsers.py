@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import tempfile
 from typing import Any, Dict, Optional, Union
 
 import yaml
@@ -140,4 +142,25 @@ def load_roms_tools_object(
 
     if not hasattr(cls, "from_yaml"):
         raise ValueError(f"roms_tools.{class_name} has no from_yaml method.")
+    # roms_tools.Grid does not accept mask_shapefile=None; drop it if present.
+    if class_name == "Grid" and isinstance(yaml_params.get("Grid"), dict):
+        grid_params = dict(yaml_params["Grid"])
+        if grid_params.get("mask_shapefile") is None:
+            grid_params.pop("mask_shapefile", None)
+            yaml_params = dict(yaml_params)
+            yaml_params["Grid"] = grid_params
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    suffix=".yml",
+                    delete=False,
+                    encoding="utf-8",
+                ) as handle:
+                    yaml.safe_dump(yaml_params, handle, sort_keys=False)
+                    temp_path = handle.name
+                return cls.from_yaml(temp_path)
+            finally:
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
     return cls.from_yaml(str(yaml_path_obj))
