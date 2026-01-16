@@ -34,6 +34,9 @@ class DaskClusterKwargs(BaseModel):
 
     account: Optional[str] = None
     queue_name: Optional[str] = None
+    n_nodes: Optional[int] = None
+    n_tasks_per_node: Optional[int] = None
+    wallclock: Optional[str] = None
     scheduler_file: Optional[str] = None
 
 
