@@ -159,8 +159,11 @@ class dask_cluster(object):
             .split(" ")[-1]
         )
 
-        while not os.path.exists(scheduler_file):
-            time.sleep(5)
+        try:
+            while not os.path.exists(scheduler_file):
+                time.sleep(5)
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt("Interrupted while waiting for scheduler file.") from None
 
         return scheduler_file, jobid
 

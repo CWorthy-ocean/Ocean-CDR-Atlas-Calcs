@@ -1,6 +1,8 @@
 dask_cluster_kwargs:
   account: m4632
   queue_name: premium
+  n_nodes: 1
+  n_tasks_per_node: 128
   scheduler_file: null
 
 notebooks:
