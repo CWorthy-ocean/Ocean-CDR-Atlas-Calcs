@@ -9,6 +9,7 @@ from subprocess import check_output, check_call
 import tempfile
 import time
 import textwrap
+import signal
 
 import dask
 from dask.distributed import Client, LocalCluster
@@ -159,11 +160,21 @@ class dask_cluster(object):
             .split(" ")[-1]
         )
 
+        interrupted = False
+        previous_handler = signal.getsignal(signal.SIGINT)
+
+        def _handle_sigint(signum, frame):  # pragma: no cover - signal path
+            nonlocal interrupted
+            interrupted = True
+
+        signal.signal(signal.SIGINT, _handle_sigint)
         try:
             while not os.path.exists(scheduler_file):
-                time.sleep(5)
-        except KeyboardInterrupt:
-            raise KeyboardInterrupt("Interrupted while waiting for scheduler file.") from None
+                if interrupted:
+                    raise KeyboardInterrupt("Interrupted while waiting for scheduler file.")
+                time.sleep(1)
+        finally:
+            signal.signal(signal.SIGINT, previous_handler)
 
         return scheduler_file, jobid
 
