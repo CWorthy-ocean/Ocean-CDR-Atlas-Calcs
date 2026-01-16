@@ -41,8 +41,8 @@ def test_load_yaml_params_multiple_documents(tmp_path):
 def test_run_notebook_calls_papermill(monkeypatch, tmp_path):
     calls = []
 
-    def fake_execute_notebook(input_path, output_path, parameters):
-        calls.append((input_path, output_path, parameters))
+    def fake_execute_notebook(input_path, output_path, parameters, kernel_name=None):
+        calls.append((input_path, output_path, parameters, kernel_name))
 
     monkeypatch.setitem(
         __import__("sys").modules,
@@ -61,7 +61,7 @@ def test_run_notebook_calls_papermill(monkeypatch, tmp_path):
 
     assert output_dir.exists()
     assert calls == [
-        (str(tmp_path / "a.ipynb"), str(output_path), params),
+        (str(tmp_path / "a.ipynb"), str(output_path), params, "atlas-calcs"),
     ]
 
 
@@ -232,6 +232,12 @@ def test_load_app_config(tmp_path):
     assert app_config.dask_cluster_kwargs.account == "m4632"
     assert app_config.notebook_list.notebooks[0].notebook_name == "regional-domain-sizing"
     assert app_config.notebook_list.notebooks[0].config.parameters["test"] is True
+    assert app_config.notebook_list.notebooks[0].config.parameters["grid_yaml"] == str(
+        tmp_path / "tests/_grid.yml"
+    )
+    assert app_config.notebook_list.notebooks[0].config.output_path == str(
+        tmp_path / "executed/domain-sizing/example.ipynb"
+    )
 
 
 def test_load_app_config_requires_notebooks(tmp_path):
@@ -254,17 +260,17 @@ def test_load_app_config_requires_notebooks(tmp_path):
 
 def test_parse_notebook_entries_requires_list():
     with pytest.raises(ValueError, match="notebooks must be a list"):
-        parsers._parse_notebook_entries({"bad": "data"})
+        parsers._parse_notebook_entries({"bad": "data"}, base_dir=Path("."))
 
 
 def test_parse_notebook_entries_requires_single_key():
     with pytest.raises(ValueError, match="single-key mapping"):
-        parsers._parse_notebook_entries([{"one": {}, "two": {}}])
+        parsers._parse_notebook_entries([{"one": {}, "two": {}}], base_dir=Path("."))
 
 
 def test_parse_notebook_entries_requires_mapping_payload():
     with pytest.raises(ValueError, match="payload must be a mapping"):
-        parsers._parse_notebook_entries([{"name": "not-a-mapping"}])
+        parsers._parse_notebook_entries([{"name": "not-a-mapping"}], base_dir=Path("."))
 
 
 def test_load_yaml_params_rejects_non_mapping(tmp_path):
@@ -305,8 +311,8 @@ def test_main_cli_uses_yaml_file(monkeypatch, tmp_path):
     application.main(args)
 
     assert captured["notebook_path"] == Path("regional-domain-sizing.ipynb")
-    assert captured["output_path"] == Path("executed/domain-sizing/example.ipynb")
-    assert captured["parameters"]["grid_yaml"] == "tests/_grid.yml"
+    assert captured["output_path"] == tmp_path / "executed/domain-sizing/example.ipynb"
+    assert captured["parameters"]["grid_yaml"] == str(tmp_path / "tests/_grid.yml")
 
 
 def test_main_cli_requires_yaml_file():

@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 
 def run_notebook(
     notebook_path: Path,
-    output_path: Path,    
+    output_path: Path,
     parameters: Dict[str, Any],
+    kernel_name: str = "atlas-calcs",
 ) -> None:
     """Execute notebooks with papermill and return output paths."""
     try:
@@ -35,10 +36,11 @@ def run_notebook(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     return module.execute_notebook(
-            str(notebook_path),
-            str(output_path),
-            parameters=parameters,
-        )
+        str(notebook_path),
+        str(output_path),
+        parameters=parameters,
+        kernel_name=kernel_name,
+    )
 
 
 def parse_args(args: Optional[Iterable[str]] = None) -> argparse.Namespace:

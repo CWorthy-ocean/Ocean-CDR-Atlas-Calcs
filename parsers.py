@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import os
-import tempfile
 from typing import Any, Dict, Optional, Union
 
 import yaml
@@ -46,7 +44,7 @@ class AppConfig(BaseModel):
     notebook_list: NotebookList
 
 
-def _parse_notebook_entries(raw_entries: Any) -> NotebookList:
+def _parse_notebook_entries(raw_entries: Any, base_dir: Path) -> NotebookList:
     if not isinstance(raw_entries, list):
         raise ValueError("notebooks must be a list of entries.")
     entries = []
@@ -56,9 +54,20 @@ def _parse_notebook_entries(raw_entries: Any) -> NotebookList:
         notebook_name, payload = next(iter(item.items()))
         if not isinstance(payload, dict):
             raise ValueError("Notebook entry payload must be a mapping.")
+        parameters = dict(payload.get("parameters", {}))
+        grid_yaml = parameters.get("grid_yaml")
+        if isinstance(grid_yaml, str):
+            grid_path = Path(grid_yaml)
+            if not grid_path.is_absolute():
+                parameters["grid_yaml"] = str(base_dir / grid_path)
+        output_path = payload.get("output_path")
+        if isinstance(output_path, str):
+            output_path_value = Path(output_path)
+            if not output_path_value.is_absolute():
+                output_path = str(base_dir / output_path_value)
         config = NotebookConfig(
-            parameters=payload.get("parameters", {}),
-            output_path=payload.get("output_path"),
+            parameters=parameters,
+            output_path=output_path,
         )
         entries.append(NotebookEntry(notebook_name=notebook_name, config=config))
     return NotebookList(notebooks=entries)
@@ -106,12 +115,13 @@ def _select_roms_tools_class_name(yaml_params: Dict[str, Any]) -> str:
 
 def load_app_config(path: Union[Path, str]) -> AppConfig:
     """Load parameters.yml into an AppConfig object."""
-    raw = load_yaml_params(path)
+    path_obj = Path(path)
+    raw = load_yaml_params(path_obj)
     dask_kwargs = raw.get("dask_cluster_kwargs")
     if "notebooks" not in raw:
         raise ValueError("notebooks must be a list of entries.")
     notebooks_raw = raw.get("notebooks")
-    notebook_list = _parse_notebook_entries(notebooks_raw)
+    notebook_list = _parse_notebook_entries(notebooks_raw, base_dir=path_obj.parent)
     return AppConfig(
         dask_cluster_kwargs=DaskClusterKwargs(**dask_kwargs) if dask_kwargs else None,
         notebook_list=notebook_list,
@@ -142,25 +152,4 @@ def load_roms_tools_object(
 
     if not hasattr(cls, "from_yaml"):
         raise ValueError(f"roms_tools.{class_name} has no from_yaml method.")
-    # roms_tools.Grid does not accept mask_shapefile=None; drop it if present.
-    if class_name == "Grid" and isinstance(yaml_params.get("Grid"), dict):
-        grid_params = dict(yaml_params["Grid"])
-        if grid_params.get("mask_shapefile") is None:
-            grid_params.pop("mask_shapefile", None)
-            yaml_params = dict(yaml_params)
-            yaml_params["Grid"] = grid_params
-            temp_path = None
-            try:
-                with tempfile.NamedTemporaryFile(
-                    mode="w",
-                    suffix=".yml",
-                    delete=False,
-                    encoding="utf-8",
-                ) as handle:
-                    yaml.safe_dump(yaml_params, handle, sort_keys=False)
-                    temp_path = handle.name
-                return cls.from_yaml(temp_path)
-            finally:
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
     return cls.from_yaml(str(yaml_path_obj))
