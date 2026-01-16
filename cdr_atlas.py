@@ -96,6 +96,15 @@ def points_within_grid_boundaries(model_grid, points_lat, points_lon):
     grid_lat_flat = grid_lat_flat[valid_mask]
     grid_lon_flat = grid_lon_flat[valid_mask]
     
+    # Normalize longitudes to avoid dateline/0-degree wrap issues.
+    def _unwrap_longitudes(lons, reference):
+        lons = np.asarray(lons, dtype=float)
+        reference = float(reference)
+        return ((lons - reference + 180.0) % 360.0) - 180.0 + reference
+
+    lon_reference = np.nanmedian(grid_lon_flat)
+    grid_lon_flat = _unwrap_longitudes(grid_lon_flat, lon_reference)
+
     # Create MultiPoint from grid points (shapely uses lon, lat order)
     grid_points = MultiPoint(list(zip(grid_lon_flat, grid_lat_flat)))
     
@@ -106,6 +115,7 @@ def points_within_grid_boundaries(model_grid, points_lat, points_lon):
     # Convert input points to numpy arrays
     points_lat = np.asarray(points_lat)
     points_lon = np.asarray(points_lon)
+    points_lon = _unwrap_longitudes(points_lon, lon_reference)
     
     # Test each point for containment in the convex hull
     # Use prepared geometry for faster contains checks

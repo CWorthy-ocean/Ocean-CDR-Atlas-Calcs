@@ -6,7 +6,7 @@ Grid:
   ny: 440
   size_x: 2688
   size_y: 5280
-  center_lon: -134.5
+  center_lon: -180.5
   center_lat: 39.6
   rot: 33.3
   N: 100
