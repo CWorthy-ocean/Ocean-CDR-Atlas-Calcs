@@ -1,4 +1,4 @@
-# Ocean-CDR-Atlas-Calcs
+# atlas calcs
 
 Run a configured set of parameterized notebooks to generate atlas calculations and
 export results. The workflow is driven by a single YAML file and a thin CLI wrapper.
