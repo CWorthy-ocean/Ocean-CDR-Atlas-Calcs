@@ -81,9 +81,9 @@ class dask_cluster(object):
             "link"
         ] = "{JUPYTERHUB_SERVICE_PREFIX}proxy/{host}:{port}/status"
         
-
-        self.dashboard_link = f"{JUPYTERHUB_URL}/{self.client.dashboard_link}"
         self.client = Client(scheduler_file=self.scheduler_file)
+        self.dashboard_link = f"{JUPYTERHUB_URL}/{self.client.dashboard_link}"
+
 
         print(f"Dashboard:\n {self.dashboard_link}")
 
