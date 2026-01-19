@@ -76,4 +76,4 @@ if ! python -m jupyter kernelspec list 2>/dev/null | grep -q "atlas-calcs"; then
   python -m ipykernel install --user --name atlas-calcs --display-name "atlas-calcs"
 fi
 
-echo "python application.py $test_arg $yaml_file"
+python application.py $test_arg $yaml_file
