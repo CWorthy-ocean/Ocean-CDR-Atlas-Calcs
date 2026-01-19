@@ -175,6 +175,12 @@ class DatasetSpec:
             cache_paths,
             combine="by_coords",
             decode_timedelta=True,
+            engine="h5netcdf",
+            parallel=True,
+            chunks={},
+            coords="minimal",
+            data_vars="minimal",
+            compat="override",
         )
 
 
