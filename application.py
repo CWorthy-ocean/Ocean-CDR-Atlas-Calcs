@@ -150,10 +150,11 @@ def main(args: Optional[Iterable[str]] = None) -> int:
                 for entry in section.children:
                     parameters = dict(entry.config.parameters)
                     
-                    if dask_cluster_kwargs is not None:
-                        parameters["dask_cluster_kwargs"] = dask_cluster_kwargs
-                    if cluster is not None:
-                        parameters["dask_cluster_kwargs"]["scheduler_file"] = cluster.scheduler_file
+                    section_dask_kwargs = dict(dask_cluster_kwargs) if dask_cluster_kwargs else None
+                    if cluster is not None and section_dask_kwargs is not None:
+                        section_dask_kwargs["scheduler_file"] = cluster.scheduler_file
+                    if section_dask_kwargs is not None:
+                        parameters["dask_cluster_kwargs"] = section_dask_kwargs
                     if parsed.test:
                         _apply_test_overrides(parameters)
                     

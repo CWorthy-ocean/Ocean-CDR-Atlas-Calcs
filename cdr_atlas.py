@@ -135,10 +135,7 @@ class DatasetSpec:
         if n_test is not None:
             manifest_df = manifest_df.head(n_test)
         
-        return (
-            manifest_df[["s3_path", "cache_path"]]
-            .to_dict(orient="records")
-        )
+        return manifest_df
 
     def ensure_cache(
         self,
@@ -148,12 +145,19 @@ class DatasetSpec:
         n_test=None,
         batch_size=50,
     ):
-        manifest = self.query(
+        
+        manifest_df = self.query(
             polygon_id=polygon_id,
             injection_year=injection_year,
             injection_month=injection_month,
             n_test=n_test,
         )
+
+        manifest = (
+            manifest_df[["s3_path", "cache_path"]]
+            .to_dict(orient="records")
+        )   
+
         s3_files = [entry["s3_path"] for entry in manifest]
         cache_paths = [Path(entry["cache_path"]) for entry in manifest]
         _download_missing_files(s3_files, cache_paths, batch_size=batch_size)
@@ -189,7 +193,7 @@ DATASET_REGISTRY = {
 
 
 
-def get_pop_grid(force_download: bool = False) -> xr.Dataset:
+def get_pop_grid() -> xr.Dataset:
     """
     Return the POP grid dataset, downloading and caching if needed.
     """
