@@ -3,6 +3,7 @@ set -euo pipefail
 
 sbatch_flag=false
 test_flag=false
+force_recompute=false
 env_file="environment.yml"
 env_name="$(awk -F': *' '$1=="name"{print $2; exit}' "$env_file" 2>/dev/null)"
 if [[ -z ${env_name:-} ]]; then
@@ -19,8 +20,11 @@ while [[ ${1:-} == --* ]]; do
     --test)
       test_flag=true
       ;;
+    --force-recompute)
+      force_recompute=true
+      ;;
     *)
-      echo "Usage: $0 [--sbatch] [--test] <parameters.yml>"
+      echo "Usage: $0 [--sbatch] [--test] [--force-recompute] <parameters.yml>"
       exit 1
       ;;
   esac
@@ -28,11 +32,11 @@ while [[ ${1:-} == --* ]]; do
 done
 
 if [[ -z ${1:-} ]]; then
-  echo "Usage: $0 [--sbatch] [--test] <parameters.yml>"
+  echo "Usage: $0 [--sbatch] [--test] [--force-recompute] <parameters.yml>"
   exit 1
 fi
 if [[ -n ${2:-} ]]; then
-  echo "Usage: $0 [--sbatch] [--test] <parameters.yml>"
+  echo "Usage: $0 [--sbatch] [--test] [--force-recompute] <parameters.yml>"
   exit 1
 fi
 
@@ -40,6 +44,10 @@ yaml_file=$1
 test_arg=""
 if $test_flag; then
   test_arg="--test"
+fi
+force_recompute_arg=""
+if $force_recompute; then
+  force_recompute_arg="--force-recompute"
 fi
 
 if $sbatch_flag; then
@@ -56,7 +64,7 @@ if $sbatch_flag; then
 
 set -euo pipefail
 cd "$submit_dir"
-./run.sh $test_arg "$yaml_file"
+./run.sh $test_arg $force_recompute_arg "$yaml_file"
 EOF
   exit $?
 fi
@@ -80,11 +88,34 @@ else
   exit 1
 fi
 
-python -m ipykernel install --sys-prefix --name "$kernel_name" --display-name "$kernel_name"
+if ! python - <<'PY'
+import importlib.util
+import sys
+
+sys.exit(0 if importlib.util.find_spec("atlas_engine") else 1)
+PY
+then
+  pip install -e .
+fi
+
+if ! python - "$kernel_name" <<'PY'
+from jupyter_client.kernelspec import KernelSpecManager
+import sys
+
+name = sys.argv[1]
+specs = KernelSpecManager().find_kernel_specs()
+sys.exit(0 if name in specs else 1)
+PY
+then
+  python -m ipykernel install --sys-prefix --name "$kernel_name" --display-name "$kernel_name"
+fi
 
 cmd=(python -m atlas_engine.application --kernel "$kernel_name")
 if [[ -n ${test_arg:-} ]]; then
   cmd+=("$test_arg")
+fi
+if [[ -n ${force_recompute_arg:-} ]]; then
+  cmd+=("$force_recompute_arg")
 fi
 cmd+=("$yaml_file")
 "${cmd[@]}"
