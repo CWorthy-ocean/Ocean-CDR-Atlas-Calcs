@@ -8,9 +8,11 @@ dask_cluster_kwargs:
 
 notebooks:
   - title: Ocean CDR Atlas Datasets
+    name: ocean-cdr-atlas-datasets
+    description: "Download the Ocean CDR Atlas datasets"
     use_dask_cluster: false
     children:
-    - download-oae-atlas.ipynb:
+    - notebooks/download-oae-atlas.ipynb:
       parameters:
         injection_year: 1999
         injection_month: 1
@@ -19,48 +21,52 @@ notebooks:
   
   - title: Domain Sizing
     use_dask_cluster: true
+    name: domain-sizing
+    description: "Determine the regions of a finite domain where CDR interventions can be captured by the ocean model."
     children:       
-    - regional-domain-sizing.ipynb:
+    - notebooks/regional-domain-sizing.ipynb:
       parameters:
         domain_name: "CCS 12km"
-        grid_yaml: cson_forge/blueprints/cson_roms-marbl_v0.1_ccs-12km/_grid.yml
+        grid_yaml: blueprints/cson_roms-marbl_v0.1_ccs-12km/_grid.yml
         injection_year: 1999
         injection_month: 1
         n_test: null
       output_path: executed/domain-sizing/regional-domain-sizing_cson_roms-marbl_v0.1_ccs-12km.ipynb
 
-    - regional-domain-sizing.ipynb:
+    - notebooks/regional-domain-sizing.ipynb:
       parameters:
         domain_name: "Gulf Guinea Toy"
-        grid_yaml: cson_forge/blueprints/cson_roms-marbl_v0.1_gulf-guinea-toy/_grid.yml
+        grid_yaml: blueprints/cson_roms-marbl_v0.1_gulf-guinea-toy/_grid.yml
         injection_year: 1999
         injection_month: 1
         n_test: null
       output_path: executed/domain-sizing/regional-domain-sizing_cson_roms-marbl_v0.1_gulf-guinea-toy.ipynb
 
-    - regional-domain-sizing.ipynb:
+    - notebooks/regional-domain-sizing.ipynb:
       parameters:
         domain_name: "Hvalfjörður 0"
-        grid_yaml: "cson_forge/blueprints/cson_roms-marbl_v0.1_hvalfj\xF6r\xF0ur-0/_grid.yml"
+        grid_yaml: "blueprints/cson_roms-marbl_v0.1_hvalfj\xF6r\xF0ur-0/_grid.yml"
         injection_year: 1999
         injection_month: 1
         n_test: null
       output_path: "executed/domain-sizing/regional-domain-sizing_cson_roms-marbl_v0.1_hvalfj\xF6\
         r\xF0ur-0.ipynb"
 
-    - regional-domain-sizing.ipynb:
+    - notebooks/regional-domain-sizing.ipynb:
       parameters:
         domain_name: "WIO Toy"
-        grid_yaml: cson_forge/blueprints/cson_roms-marbl_v0.1_wio-toy/_grid.yml
+        grid_yaml: blueprints/cson_roms-marbl_v0.1_wio-toy/_grid.yml
         injection_year: 1999
         injection_month: 1
         n_test: null
       output_path: executed/domain-sizing/regional-domain-sizing_cson_roms-marbl_v0.1_wio-toy.ipynb
 
-  - title: Skill Assessment
+  - title: C-SON Skill Assessment
     use_dask_cluster: false
+    name: cson-skill-assessment
+    description: "C-SON Skill Assessment"
     children:
-    - skill-assessment-glodap.ipynb:
+    - notebooks/skill-assessment-glodap.ipynb:
       parameters:
         domain_name: "CCS 12km"
         model_files: null

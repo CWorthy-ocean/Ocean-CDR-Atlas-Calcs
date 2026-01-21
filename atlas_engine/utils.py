@@ -14,7 +14,7 @@ import signal
 import dask
 from dask.distributed import Client, LocalCluster
 
-import paths
+from . import paths
 
 JUPYTERHUB_URL = paths.jupyterhub_url
 

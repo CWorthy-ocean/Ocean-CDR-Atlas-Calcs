@@ -1,4 +1,4 @@
-name: atlas-calcs
+name: cson-atlas
 channels:
   - conda-forge
   - nodefaults
@@ -51,3 +51,5 @@ dependencies:
   - xesmf
   - xgcm
   - zarr
+  - pip:
+    - -e .

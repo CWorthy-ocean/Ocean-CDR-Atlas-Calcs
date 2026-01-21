@@ -21,7 +21,7 @@ import pop_tools
 from shapely.geometry import MultiPoint, Point
 from shapely.prepared import prep
 
-import paths
+from . import paths
 
 # Module-level constants
 USER = os.environ["USER"]
@@ -40,7 +40,6 @@ class DatasetSpec:
     def __init__(
         self,
         name,
-        s3_base_url,
         n_years,
         polygon_ids,
         injection_years,
@@ -49,13 +48,13 @@ class DatasetSpec:
         model_year_offset: int = 0,
     ):
         self.name = name
-        self.s3_base_url = s3_base_url
         self.n_years = n_years
         self.polygon_ids = polygon_ids
         self.injection_years = injection_years
         self.injection_months = injection_months
         self.model_year_align = model_year_align
         self.model_year_offset = model_year_offset
+        self.cache_dir = CACHE_DIR
 
     @property
     def df(self):
@@ -82,7 +81,7 @@ class DatasetSpec:
         force_download : bool, optional
             If True, re-download even if cached. Default is False.
         """
-        polygon_masks_url = f"{self.s3_base_url}/polygon_masks.nc"
+        polygon_masks_url = f"{S3_BASE_URL}/polygon_masks.nc"
         polygon_masks_cache_path = CACHE_DIR / "polygon_masks.nc"
         if force_download or not polygon_masks_cache_path.exists():
             polygon_masks_cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,7 +104,7 @@ class DatasetSpec:
                                 "year": year,
                                 "month": month,
                                 "s3_path": (
-                                    f"{self.s3_base_url}/experiments/{polygon_id:03d}/{injection_month:02d}/"
+                                    f"{S3_BASE_URL}/experiments/{polygon_id:03d}/{injection_month:02d}/"
                                     f"alk-forcing.{polygon_id:03d}-{injection_year:04d}-{injection_month:02d}"
                                     f".pop.h.{year:04d}-{month:02d}.nc"
                                 ),
@@ -194,21 +193,8 @@ class DatasetSpec:
                 data_vars="minimal",
                 compat="override",
             )
-
-
-DATASET_REGISTRY = {
-    "oae-efficiency-map_atlas-v0": DatasetSpec(
-        name="oae-efficiency-map_atlas-v0",
-        s3_base_url=S3_BASE_URL,
-        n_years=15,
-        polygon_ids=list(range(0, 690)),
-        injection_years=[1999],
-        injection_months=[1, 4, 7, 10],
-        model_year_align=1999,
-        model_year_offset=1652,
-    )
-}
-
+    def analyzer(self, model_grid):
+        return AtlasModelGridAnalyzer(model_grid, self)
 
 
 def get_pop_grid() -> xr.Dataset:

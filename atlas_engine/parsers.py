@@ -28,6 +28,8 @@ class NotebookSection(BaseModel):
     """Schema for a titled notebook section."""
 
     title: str
+    name: Optional[str] = None
+    description: Optional[str] = None
     children: list[NotebookEntry]
     use_dask_cluster: bool = False
 
@@ -126,6 +128,8 @@ def _parse_notebook_entries(raw_entries: Any, base_dir: Path) -> NotebookList:
             sections = []
             for section in raw_entries:
                 title = section.get("title", "Untitled")
+                name = section.get("name")
+                description = section.get("description")
                 children = section.get("children")
                 if not isinstance(children, list):
                     raise ValueError("children must be a list of entries.")
@@ -133,6 +137,8 @@ def _parse_notebook_entries(raw_entries: Any, base_dir: Path) -> NotebookList:
                 sections.append(
                     NotebookSection(
                         title=title,
+                        name=name,
+                        description=description,
                         children=_parse_notebook_entry_list(children, base_dir),
                         use_dask_cluster=use_dask_cluster,
                     )
@@ -199,7 +205,10 @@ def load_app_config(path: Union[Path, str]) -> AppConfig:
     if "notebooks" not in raw:
         raise ValueError("notebooks must be a list of entries.")
     notebooks_raw = raw.get("notebooks")
-    notebook_list = _parse_notebook_entries(notebooks_raw, base_dir=path_obj.parent)
+    notebook_list = _parse_notebook_entries(
+        notebooks_raw,
+        base_dir=path_obj.parent.resolve(),
+    )
     return AppConfig(
         dask_cluster_kwargs=DaskClusterKwargs(**dask_kwargs) if dask_kwargs else None,
         notebook_list=notebook_list,

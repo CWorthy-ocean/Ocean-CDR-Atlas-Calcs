@@ -1,4 +1,4 @@
-# atlas calcs
+# C-SON Atlas
 
 Run a configured set of parameterized notebooks to generate atlas calculations and
 export results. The workflow is driven by a single YAML file and a thin CLI wrapper.
@@ -6,34 +6,34 @@ export results. The workflow is driven by a single YAML file and a thin CLI wrap
 ## Quick Start
 
 ```bash
-./run.sh parameters.yml
+./run.sh workflow.yml
 ```
 
 On SLURM systems:
 
 ```bash
-./run.sh --sbatch parameters.yml
+./run.sh --sbatch workflow.yml
 ```
 
 ## `run.sh` Interface
 
 `run.sh` is the primary entrypoint. It:
 
-- Activates (or creates) the `atlas-calcs` conda environment.
-- Installs the `atlas-calcs` Jupyter kernel if missing.
-- Runs `application.py` with your YAML config.
+- Activates (or creates) the conda environment named in `environment.yml`.
+- Installs the matching Jupyter kernel (same name as the environment).
+- Runs `atlas_engine.application` with your YAML config.
 - Optionally submits a SLURM job with `--sbatch`.
 
 Usage:
 
 ```bash
-./run.sh [--sbatch] <parameters.yml>
+./run.sh [--sbatch] <workflow.yml>
 ```
 
 The `--sbatch` flag submits a short SLURM wrapper via a heredoc. Edit the SBATCH
 directives in `run.sh` to tune wallclock, nodes, or CPU allocation.
 
-## Configuration (`parameters.yml`)
+## Configuration (`workflow.yml`)
 
 The YAML file defines both cluster settings and the notebooks to execute.
 
@@ -47,13 +47,13 @@ dask_cluster_kwargs:
   scheduler_file: null
 
 notebooks:
-  title: "Domain Sizing"
-  notebooks:
-    - regional-domain-sizing:
-        parameters:
-          grid_yaml: cson_forge/blueprints/.../_grid.yml
-          test: true
-        output_path: executed/domain-sizing/example.ipynb
+  - title: "Domain Sizing"
+    children:
+      - notebooks/regional-domain-sizing.ipynb:
+          parameters:
+            grid_yaml: blueprints/.../_grid.yml
+            test: true
+          output_path: executed/domain-sizing/example.ipynb
 ```
 
 Notes:
@@ -62,21 +62,21 @@ Notes:
 
 ## Dask Cluster Lifecycle
 
-When SLURM is available, `application.py` uses `utils.dask_cluster` to manage a
-single Dask cluster for the full run of notebooks:
+When SLURM is available, `atlas_engine.application` uses `atlas_engine.utils.dask_cluster`
+to manage a Dask cluster per section that has `use_dask_cluster: true`.
 
 The connected `scheduler_file` is injected into each notebook’s parameters as
-`dask_cluster_kwargs.scheduler_file`, so all notebooks use the same cluster; 
-the calls to `utils.dask_cluster` will **connect** to a scheduler rather 
-than spin up a new cluster.
+`dask_cluster_kwargs.scheduler_file`, so notebooks in that section reuse the
+same cluster. If the scheduler file is stale, the cluster helper will attempt
+to relaunch when possible.
 
 If SLURM is not available, the code falls back to a local Dask cluster.
 
 ## What `application.py` Does
 
-- Loads `parameters.yml` into validated Pydantic models (`parsers.py`).
-- Optionally launches or connects to a Dask cluster (`utils.dask_cluster`).
-- Executes each notebook with Papermill using the `atlas-calcs` kernel.
+- Loads `workflow.yml` into validated Pydantic models (`atlas_engine.parsers`).
+- Optionally launches or connects to a Dask cluster (`atlas_engine.utils.dask_cluster`).
+- Executes each notebook with Papermill using the configured kernel (default: `cson-atlas`).
 - Renders `{{ key }}` placeholders in markdown cells using the parameters dict.
 - Updates `myst.yml` `project.toc` with the executed notebook paths.
 - Logs failures and raises a summary error if any notebooks fail.
@@ -98,6 +98,6 @@ project:
 
 - Python dependencies live in `environment.yml`.
 - Tests are under `tests/` (run with `pytest`).
-- Parsing logic lives in `parsers.py`.
-- Dask SLURM cluster management lives in `utils.py`.
+- Parsing logic lives in `atlas_engine/parsers.py`.
+- Dask SLURM cluster management lives in `atlas_engine/utils.py`.
 

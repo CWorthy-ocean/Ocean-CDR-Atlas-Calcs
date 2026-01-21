@@ -3,8 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import application
-import parsers
+from atlas_engine import application, parsers
 
 
 def test_load_yaml_params_single_document(tmp_path):
@@ -64,8 +63,8 @@ def test_run_notebook_calls_papermill(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_execute_notebook(input_path, output_path, parameters, kernel_name=None):
-        calls.append((input_path, output_path, parameters, kernel_name))
+    def fake_execute_notebook(input_path, output_path, parameters, kernel_name=None, **kwargs):
+        calls.append((input_path, output_path, parameters, kernel_name, kwargs.get("cwd")))
 
     monkeypatch.setitem(
         __import__("sys").modules,
@@ -87,7 +86,13 @@ def test_run_notebook_calls_papermill(monkeypatch, tmp_path):
 
     assert output_dir.exists()
     assert calls == [
-        (str(notebook_path), str(output_path), params, "atlas-calcs"),
+        (
+            notebook_path.name,
+            str(output_path),
+            params,
+            "cson-atlas",
+            str(notebook_path.parent.resolve()),
+        ),
     ]
 
 
@@ -127,10 +132,13 @@ def test_run_notebook_replaces_markdown_placeholders(monkeypatch, tmp_path):
 
     captured = {}
 
-    def fake_execute_notebook(input_path, output_path_arg, parameters, kernel_name=None):
-        rendered = nbformat.read(input_path, as_version=4)
+    def fake_execute_notebook(input_path, output_path_arg, parameters, kernel_name=None, **kwargs):
+        cwd = kwargs.get("cwd")
+        read_path = Path(cwd) / input_path if cwd and not Path(input_path).is_absolute() else Path(input_path)
+        rendered = nbformat.read(str(read_path), as_version=4)
         captured["input_path"] = input_path
         captured["markdown"] = rendered.cells[0]["source"]
+        captured["cwd"] = kwargs.get("cwd")
 
     monkeypatch.setitem(
         __import__("sys").modules,
@@ -142,6 +150,7 @@ def test_run_notebook_replaces_markdown_placeholders(monkeypatch, tmp_path):
 
     assert captured["input_path"] != str(notebook_path)
     assert captured["markdown"] == "Grid: tests/_grid.yml"
+    assert captured["cwd"] == str(notebook_path.parent.resolve())
 
 
 def test_normalize_file_type():
@@ -352,7 +361,7 @@ def test_load_yaml_params_rejects_non_mapping(tmp_path):
 def test_main_cli_uses_yaml_file(monkeypatch, tmp_path):
     captured = {}
 
-    def fake_run_notebook(notebook_path, output_path, parameters, papermill_module=None):
+    def fake_run_notebook(notebook_path, output_path, parameters, **kwargs):
         captured["notebook_path"] = notebook_path
         captured["output_path"] = output_path
         captured["parameters"] = parameters

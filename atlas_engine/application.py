@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import logging
 from pathlib import Path
 import re
@@ -15,8 +16,8 @@ try:
 except ImportError:  # pragma: no cover - exercised via explicit error path
     papermill = None
 
-from parsers import load_app_config
-import utils
+from .parsers import load_app_config
+from . import utils
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ def _render_markdown_placeholders(
             suffix=".ipynb",
             delete=False,
             encoding="utf-8",
+            dir=str(notebook_path.parent.resolve()),
         ) as handle:
             nbformat.write(nb, handle)
             temp_path = handle.name
@@ -73,7 +75,7 @@ def run_notebook(
     notebook_path: Path,
     output_path: Path,
     parameters: Dict[str, Any],
-    kernel_name: str = "atlas-calcs",
+    kernel_name: str = "cson-atlas",
 ) -> None:
     """Execute notebooks with papermill and return output paths."""
     try:
@@ -82,34 +84,26 @@ def run_notebook(
         raise RuntimeError("papermill is required to execute notebooks.")
     module = papermill
 
+    output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = _render_markdown_placeholders(notebook_path, parameters)
     input_path = temp_path if temp_path is not None else notebook_path
+    notebook_dir = notebook_path.parent.resolve()
     try:
+        previous_cwd = os.getcwd()
+        os.chdir(notebook_dir)
         return module.execute_notebook(
-            str(input_path),
+            input_path.name,
             str(output_path),
             parameters=parameters,
             kernel_name=kernel_name,
+            cwd=str(notebook_dir),
         )
     finally:
+        os.chdir(previous_cwd)
         if temp_path is not None and temp_path.exists():
             temp_path.unlink()
 
-
-def parse_args(args: Optional[Iterable[str]] = None) -> argparse.Namespace:
-    """Parse CLI arguments."""
-    parser = argparse.ArgumentParser(description="Run parameterized notebooks with papermill.")
-    parser.add_argument(
-        "yaml_file",
-        help="Path to parameters.yml file.",
-    )
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Force test settings (n_test=2, test=True) in notebook parameters.",
-    )
-    return parser.parse_args(args=args)
 
 
 def _apply_test_overrides(value: Any) -> None:
@@ -126,6 +120,25 @@ def _apply_test_overrides(value: Any) -> None:
     if isinstance(value, list):
         for item in value:
             _apply_test_overrides(item)
+
+def parse_args(args: Optional[Iterable[str]] = None) -> argparse.Namespace:
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser(description="Run parameterized notebooks with papermill.")
+    parser.add_argument(
+        "yaml_file",
+        help="Path to parameters.yml file.",
+    )
+    parser.add_argument(
+        "--kernel",
+        default="cson-atlas",
+        help="Jupyter kernel name to use when executing notebooks.",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Force test settings (n_test=2, test=True) in notebook parameters.",
+    )
+    return parser.parse_args(args=args)
 
 
 def main(args: Optional[Iterable[str]] = None) -> int:
@@ -171,6 +184,7 @@ def main(args: Optional[Iterable[str]] = None) -> int:
                             notebook_path,
                             output_path=output_path,
                             parameters=parameters,
+                            kernel_name=parsed.kernel,
                         )
                         completed.append(str(output_path))
                         logger.info("Completed %s", output_path)

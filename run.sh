@@ -3,6 +3,14 @@ set -euo pipefail
 
 sbatch_flag=false
 test_flag=false
+env_file="environment.yml"
+env_name="$(awk -F': *' '$1=="name"{print $2; exit}' "$env_file" 2>/dev/null)"
+if [[ -z ${env_name:-} ]]; then
+  echo "Could not determine environment name from ${env_file}."
+  exit 1
+fi
+kernel_name="$env_name"
+job_name="atlas-engine"
 while [[ ${1:-} == --* ]]; do
   case "$1" in
     --sbatch)
@@ -38,12 +46,12 @@ if $sbatch_flag; then
   submit_dir="$PWD"
   sbatch <<EOF
 #!/usr/bin/env bash
-#SBATCH --job-name atlas-calcs
+#SBATCH --job-name ${job_name}
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 1
-#SBATCH --output atlas-calcs-%j.out
-#SBATCH --error atlas-calcs-%j.err
+#SBATCH --output ${job_name}-%j.out
+#SBATCH --error ${job_name}-%j.err
 #SBATCH --time 02:00:00
 
 set -euo pipefail
@@ -62,18 +70,16 @@ fi
 if command -v conda >/dev/null 2>&1; then
   set +u
   source "$(conda info --base)/etc/profile.d/conda.sh"
-  if ! conda env list | awk '{print $1}' | grep -q '^atlas-calcs$'; then
+  if ! conda env list | awk '{print $1}' | grep -q "^$kernel_name$"; then
     conda env create -f environment.yml
   fi
-  conda activate atlas-calcs
+  conda activate "$kernel_name"
   set -u
 else
   echo "Conda is not installed. Please install it and try again."
   exit 1
 fi
 
-if ! python -m jupyter kernelspec list 2>/dev/null | grep -q "atlas-calcs"; then
-  python -m ipykernel install --user --name atlas-calcs --display-name "atlas-calcs"
-fi
+python -m ipykernel install --sys-prefix --name "$kernel_name" --display-name "$kernel_name"
 
-python application.py $test_arg $yaml_file
+python -m atlas_engine.application --kernel "$kernel_name" "$test_arg" "$yaml_file"

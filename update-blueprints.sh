@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/CWorthy-ocean/cson-forge"
 BRANCH="main"
-TARGET_DIR="cson_forge/blueprints"
+TARGET_DIR="blueprints"
 META_FILE="${TARGET_DIR}/.upstream-meta.json"
 
 if ! command -v git >/dev/null 2>&1; then

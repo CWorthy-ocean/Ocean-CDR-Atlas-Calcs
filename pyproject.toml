@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atlas-engine"
+version = "0.0.0"
+description = "Run configured parameterized notebooks to generate atlas calculations."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+dependencies = [
+  "dask",
+  "distributed",
+  "nbformat",
+  "numpy",
+  "pandas",
+  "papermill",
+  "pop-tools",
+  "pyyaml",
+  "pydantic",
+  "s3fs",
+  "shapely",
+  "xarray",
+]
+
+[project.optional-dependencies]
+roms-tools = ["roms-tools>=3.3.0"]
+test = ["pytest>=7.0.0", "pytest-cov>=4.0.0", "pytest-xdist>=3.0.0"]
+
+[tool.setuptools]
+packages = ["atlas_engine"]
