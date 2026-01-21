@@ -171,17 +171,29 @@ class DatasetSpec:
             n_test=n_test,
         )
         cache_paths = [entry["cache_path"] for entry in manifest]
-        return xr.open_mfdataset(
-            cache_paths,
-            combine="by_coords",
-            decode_timedelta=True,
-            engine="h5netcdf",
-            parallel=True,
-            chunks={},
-            coords="minimal",
-            data_vars="minimal",
-            compat="override",
-        )
+        try:
+            return xr.open_mfdataset(
+                cache_paths,
+                combine="by_coords",
+                decode_timedelta=True,
+                engine="h5netcdf",
+                parallel=True,
+                chunks={},
+                coords="minimal",
+                data_vars="minimal",
+                compat="override",
+            )
+        except Exception:
+            # Fallback for h5netcdf edge cases seen on some systems.
+            return xr.open_mfdataset(
+                cache_paths,
+                combine="by_coords",
+                decode_timedelta=True,
+                parallel=False,
+                coords="minimal",
+                data_vars="minimal",
+                compat="override",
+            )
 
 
 DATASET_REGISTRY = {
